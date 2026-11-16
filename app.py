@@ -6,6 +6,14 @@ from datetime import datetime
 
 app = Flask(__name__)
 
+# Health check endpoint for Docker and AWS
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({
+        "status": "healthy",
+        "application": "PhishGuard"
+    }), 200
+
 # Load Vectorizer
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(BASE_DIR, "models")
