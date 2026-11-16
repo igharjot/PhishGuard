@@ -1,0 +1,12 @@
+
+.env
+.venv/
+venv/
+
+__pycache__/
+*.pyc
+
+prediction_logs/*.csv
+!prediction_logs/.gitkeep
+
+.pytest_cache/
