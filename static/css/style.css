@@ -1,0 +1,230 @@
+/* RESET */
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+
+    font-family:Arial, Helvetica, sans-serif;
+
+    background:#07131f;
+
+    color:white;
+
+    min-height:100vh;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    overflow-x:hidden;
+
+}
+
+/* Animated Background */
+
+.background{
+
+    position:fixed;
+
+    width:100%;
+
+    height:100%;
+
+    background:
+    radial-gradient(circle at top,#00ffd522,transparent 60%),
+    radial-gradient(circle at bottom,#0066ff22,transparent 60%);
+
+    z-index:-1;
+
+}
+
+.container{
+
+    width:90%;
+    max-width:900px;
+
+    background:#101b2c;
+
+    padding:40px;
+
+    border-radius:20px;
+
+    text-align:center;
+
+    box-shadow:0 0 40px #00ffe044;
+
+}
+
+.logo{
+
+    font-size:70px;
+
+    margin-bottom:15px;
+
+}
+
+h1{
+
+    font-size:48px;
+
+    color:#00ffd5;
+
+}
+
+.subtitle{
+
+    margin-top:10px;
+
+    color:#b0bfd0;
+
+    margin-bottom:35px;
+
+}
+
+.search-box{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:20px;
+
+}
+
+.search-box input{
+
+    padding:18px;
+
+    font-size:18px;
+
+    border:none;
+
+    border-radius:10px;
+
+    outline:none;
+
+    background:#19263c;
+
+    color:white;
+
+}
+
+.search-box button{
+
+    padding:18px;
+
+    font-size:18px;
+
+    border:none;
+
+    border-radius:10px;
+
+    cursor:pointer;
+
+    background:#00d084;
+
+    color:white;
+
+    transition:.3s;
+
+}
+
+.search-box button:hover{
+
+    background:#00b06e;
+
+    transform:scale(1.02);
+
+}
+.result-card{
+
+    margin-top:35px;
+
+    padding:25px;
+
+    border-radius:15px;
+
+    background:#162437;
+
+    border:2px solid #00ffd5;
+
+}
+
+.hidden{
+
+    display:none;
+
+}
+
+.safe{
+
+    border-color:#00d084;
+
+}
+
+.phishing{
+
+    border-color:#ff4d4d;
+
+}.comparison{
+
+    margin-top:40px;
+
+}
+
+table{
+
+    width:100%;
+
+    margin-top:15px;
+
+    border-collapse:collapse;
+
+}
+
+th{
+
+    background:#00ffd533;
+
+    padding:15px;
+
+}
+
+td{
+
+    padding:15px;
+
+    border-bottom:1px solid #243348;
+
+}
+
+.safe-text{
+
+    color:#00ff99;
+
+    font-weight:bold;
+
+}
+
+.phishing-text{
+
+    color:#ff5555;
+
+    font-weight:bold;
+
+}
+footer{
+
+    margin-top:35px;
+
+    color:#8596aa;
+
+    font-size:14px;
+
+}
