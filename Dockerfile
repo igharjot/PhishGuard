@@ -13,13 +13,24 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 
+
 # Install Python dependencies
 COPY requirements.txt .
 
 RUN python -m pip install --no-cache-dir --upgrade pip && \
     python -m pip install --no-cache-dir -r requirements.txt && \
-    python -m pip install --no-cache-dir --upgrade "setuptools==78.1.1" && \
-    python -c "import importlib.metadata as m; print('Setuptools:', m.version('setuptools')); assert m.version('setuptools') == '78.1.1'"
+    python -m pip install --no-cache-dir --upgrade \
+    "setuptools>=78.1.1" \
+    "wheel>=0.46.2" \
+    "jaraco.context>=6.1.0" && \
+    python -m pip check && \
+    python -c "import importlib.metadata as m; \
+    packages = {'setuptools': '78.1.1', \
+    'wheel': '0.46.2', \
+    'jaraco.context': '6.1.0'}; \
+    [print(name, m.version(name)) for name in packages]; \
+    assert all(tuple(map(int, m.version(name).split('.')[:3])) >= tuple(map(int, version.split('.'))) for name, version in packages.items())"
+
 
 
 # Create non-root application user
