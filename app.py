@@ -1,3 +1,4 @@
+
 from flask import Flask, render_template, request, jsonify
 import joblib
 import os
@@ -6,7 +7,15 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# Health check endpoint for Docker and AWS
+# Application directories
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DIR = os.path.join(BASE_DIR, "models")
+LOG_DIR = os.path.join(BASE_DIR, "prediction_logs")
+
+os.makedirs(LOG_DIR, exist_ok=True)
+
+
+# Health check endpoint
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({
@@ -14,14 +23,13 @@ def health():
         "application": "PhishGuard"
     }), 200
 
-# Load Vectorizer
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR = os.path.join(BASE_DIR, "models")
 
+# Load TF-IDF Vectorizer
 vectorizer = joblib.load(
     os.path.join(MODEL_DIR, "tfidf_vectorizer.pkl")
 )
 
+# Load trained ML models
 models = {
     "Random Forest": joblib.load(
         os.path.join(MODEL_DIR, "random_forest_model.pkl")
@@ -37,18 +45,23 @@ models = {
     )
 }
 
-# ---------------- HOME PAGE ----------------
+
+# Home page
 @app.route("/")
 def home():
     return render_template("index.html")
 
 
-# ================= Prediction Route =================
-
+# Prediction endpoint
 @app.route("/predict", methods=["POST"])
 def predict():
 
-    url = request.form["url"]
+    url = request.form.get("url", "").strip()
+
+    if not url:
+        return jsonify({
+            "error": "URL is required"
+        }), 400
 
     vector = vectorizer.transform([url])
 
@@ -61,23 +74,20 @@ def predict():
         confidence = None
 
         if hasattr(model, "predict_proba"):
-            confidence = round(max(model.predict_proba(vector)[0])*100,2)
+            confidence = round(
+                max(model.predict_proba(vector)[0]) * 100,
+                2
+            )
 
         results[name] = {
-            "prediction":"Phishing" if prediction==1 else "Safe",
-            "confidence":confidence
+            "prediction": (
+                "Phishing" if prediction == 1 else "Safe"
+            ),
+            "confidence": confidence
         }
 
-
-  # ================= Save Prediction History =================
-
-    history_path = os.path.join(
-    BASE_DIR,
-    "prediction_logs",
-    "history.csv"
-)
-
-    os.makedirs("prediction_logs", exist_ok=True)
+    # Save prediction history
+    history_path = os.path.join(LOG_DIR, "history.csv")
 
     row = {
         "Date": datetime.now().strftime("%d-%m-%Y %H:%M"),
@@ -91,12 +101,26 @@ def predict():
     df = pd.DataFrame([row])
 
     if os.path.exists(history_path):
-        df.to_csv(history_path, mode="a", header=False, index=False)
+        df.to_csv(
+            history_path,
+            mode="a",
+            header=False,
+            index=False
+        )
     else:
-        df.to_csv(history_path, index=False)
-         
+        df.to_csv(
+            history_path,
+            index=False
+        )
+
     return jsonify(results)
 
 
+# Local development only
+# Production uses Gunicorn
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(
+        host="127.0.0.1",
+        port=5000,
+        debug=False
+    )

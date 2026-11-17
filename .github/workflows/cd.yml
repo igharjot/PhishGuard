@@ -72,6 +72,8 @@ jobs:
 
           mkdir -p /opt/phishguard/prediction_logs
 
+          chown -R 10001:10001 /opt/phishguard/prediction_logs
+
           docker rm -f phishguard || true
 
           docker run -d --name phishguard --restart unless-stopped -p 80:5000 -v /opt/phishguard/prediction_logs:/app/prediction_logs ${IMAGE_URI}
