@@ -12,12 +12,15 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends libgomp1 && \
     rm -rf /var/lib/apt/lists/*
 
+
 # Install Python dependencies
 COPY requirements.txt .
 
 RUN python -m pip install --no-cache-dir --upgrade pip && \
     python -m pip install --no-cache-dir -r requirements.txt && \
-    python -m pip install --no-cache-dir --upgrade "setuptools>=78.1.1"
+    python -m pip install --no-cache-dir --upgrade "setuptools==78.1.1" && \
+    python -c "import importlib.metadata as m; print('Setuptools:', m.version('setuptools')); assert m.version('setuptools') == '78.1.1'"
+
 
 # Create non-root application user
 RUN groupadd --gid 10001 appgroup && \
