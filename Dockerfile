@@ -6,8 +6,9 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Install required system library
+# Update Debian packages to receive security fixes
 RUN apt-get update && \
+    apt-get upgrade -y --no-install-recommends && \
     apt-get install -y --no-install-recommends libgomp1 && \
     rm -rf /var/lib/apt/lists/*
 
@@ -15,7 +16,8 @@ RUN apt-get update && \
 COPY requirements.txt .
 
 RUN python -m pip install --no-cache-dir --upgrade pip && \
-    python -m pip install --no-cache-dir -r requirements.txt
+    python -m pip install --no-cache-dir -r requirements.txt && \
+    python -m pip install --no-cache-dir --upgrade "setuptools>=78.1.1"
 
 # Create non-root application user
 RUN groupadd --gid 10001 appgroup && \
@@ -35,10 +37,9 @@ COPY --chown=appuser:appgroup static/ ./static/
 RUN mkdir -p /app/prediction_logs && \
     chown -R appuser:appgroup /app/prediction_logs
 
-# Switch to non-root user
+# Run as non-root user
 USER appuser
 
-# Application port
 EXPOSE 5000
 
 # Container health check
@@ -48,5 +49,5 @@ HEALTHCHECK --interval=30s \
     --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=3)"
 
-# Production WSGI server
+# Production server
 CMD ["gunicorn", "--workers", "1", "--threads", "2", "--timeout", "60", "--bind", "0.0.0.0:5000", "app:app"]
