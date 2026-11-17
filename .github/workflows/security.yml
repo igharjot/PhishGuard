@@ -1,0 +1,64 @@
+
+name: PhishGuard Security Scanning
+
+on:
+  workflow_call:
+
+jobs:
+  security-scans:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Python environment
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install Security Tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install semgrep bandit
+
+      # SAST
+      - name: Semgrep SAST Scan
+        run: |
+          semgrep scan --config auto --error .
+
+      # Python SAST
+      - name: Bandit Security Scan
+        run: |
+          bandit -r . -ll -x .git,.venv,venv
+
+      # Secret scanning
+      - name: Gitleaks Secret Scan
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Dockerfile linting
+      - name: Hadolint Scan
+        uses: hadolint/hadolint-action@v3.5.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: error
+
+      # Filesystem vulnerability scanning
+      - name: Trivy Filesystem Scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table

@@ -1,0 +1,150 @@
+
+name: PhishGuard Continuous Integration
+
+on:
+  workflow_call:
+
+jobs:
+  build-test:
+    name: Build, Scan and Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+
+      IMAGE_URI: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      # Validate configuration
+      - name: Validate Configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for name in AWS_REGION AWS_ACCOUNT_ID ECR_REPOSITORY AWS_ROLE_ARN; do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing GitHub variable: $name"
+              exit 1
+            fi
+          done
+
+      # Python syntax
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Python Syntax Check
+        run: |
+          python -m py_compile app.py
+
+      # Docker build
+      - name: Build Docker Image
+        run: |
+          docker build --pull -t "$IMAGE_URI" .
+
+      # Container vulnerability scan
+      - name: Trivy Docker Image Scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_URI }}
+          scan-type: image
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+
+      # Docker application testing
+      - name: Test Docker Container
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker run -d \
+            --name phishguard-ci \
+            -p 127.0.0.1:5000:5000 \
+            "$IMAGE_URI"
+
+          cleanup() {
+            docker logs phishguard-ci 2>/dev/null || true
+            docker rm -f phishguard-ci 2>/dev/null || true
+          }
+
+          trap cleanup EXIT
+
+          READY=false
+
+          for attempt in {1..60}; do
+
+            if curl -fsS http://127.0.0.1:5000/health; then
+              READY=true
+              break
+            fi
+
+            STATUS=$(docker inspect \
+              --format '{{.State.Status}}' phishguard-ci \
+              2>/dev/null || echo "missing")
+
+            if [[ "$STATUS" == "exited" ]]; then
+              echo "Container exited unexpectedly."
+              docker logs phishguard-ci
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          if [[ "$READY" != "true" ]]; then
+            echo "Health check failed."
+            docker logs phishguard-ci
+            exit 1
+          fi
+
+          PREDICTION=$(curl -fsS \
+            -X POST \
+            -F "url=https://www.google.com" \
+            http://127.0.0.1:5000/predict)
+
+          echo "$PREDICTION" | jq -e '
+            has("Random Forest") and
+            has("Logistic Regression") and
+            has("Naive Bayes") and
+            has("Linear SVM")
+          ' > /dev/null
+
+          echo "All four ML models passed."
+          echo "Docker application test passed."
+
+      # AWS authentication
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          allowed-account-ids: ${{ env.AWS_ACCOUNT_ID }}
+          role-session-name: PhishGuardGitHubActions
+
+      - name: Verify AWS Identity
+        run: |
+          aws sts get-caller-identity
+
+      # ECR login
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Push image
+      - name: Push Docker Image
+        run: |
+          docker push "$IMAGE_URI"
+
+          echo "Image pushed successfully:"
+          echo "$IMAGE_URI"
