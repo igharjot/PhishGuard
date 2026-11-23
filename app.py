@@ -45,6 +45,12 @@ models = {
     )
 }
 
+print("\n========== MODEL LABEL DIAGNOSTICS ==========")
+
+for name, model in models.items():
+    print(f"{name}: {model.classes_}")
+
+print("=============================================\n")
 
 # Home page
 @app.route("/")
@@ -53,6 +59,7 @@ def home():
 
 
 # Prediction endpoint
+
 @app.route("/predict", methods=["POST"])
 def predict():
 
@@ -69,20 +76,41 @@ def predict():
 
     for name, model in models.items():
 
-        prediction = model.predict(vector)[0]
+        raw_prediction = model.predict(vector)[0]
+
+        # Convert actual model labels into application labels
+        if str(raw_prediction).lower() == "bad":
+            prediction = "Phishing"
+
+        elif str(raw_prediction).lower() == "good":
+            prediction = "Safe"
+
+        else:
+            # Do not silently assume unknown labels mean Safe
+            return jsonify({
+                "error": f"Unknown prediction label from {name}: {raw_prediction}"
+            }), 500
 
         confidence = None
 
+        # Calculate confidence using the probability
+        # of the GOOD (Safe) class, as in the original code
         if hasattr(model, "predict_proba"):
-            confidence = round(
-                max(model.predict_proba(vector)[0]) * 100,
-                2
-            )
+
+            probabilities = model.predict_proba(vector)[0]
+
+            classes = [str(c).lower() for c in model.classes_]
+
+            if "good" in classes:
+                good_index = classes.index("good")
+
+                confidence = round(
+                    probabilities[good_index] * 100,
+                    2
+                )
 
         results[name] = {
-            "prediction": (
-                "Phishing" if prediction == 1 else "Safe"
-            ),
+            "prediction": prediction,
             "confidence": confidence
         }
 
